@@ -174,3 +174,17 @@ class DiscreteGraph(object):
                     jj = j + dj; ii = i + di
                     if (jj in rh) and (ii in rw) and (not BaseSemiAlgebraicModel.any_contains((jj,ii), obstacles)):
                         self.edges[v].append(((jj,ii), dd))
+
+# A maze object that uses a DiscreteGraph instance with some other utilities
+class Maze(object):
+
+    # The DiscreteGraph representation of the maze
+    graph = None
+
+    # Build the graph with the list of semi-algebraic models
+    def __init__(self, obstacles):
+        self.graph = DiscreteGraph(obstacles)
+
+    # Determine if a coordinate pair is in a traversable portion of the maze
+    def is_in_board(self, position):
+        return position in self.graph.edges
