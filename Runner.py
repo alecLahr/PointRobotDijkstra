@@ -4,6 +4,7 @@ import abc
 import cv2
 import numpy as np
 from math import sqrt
+from sys import argv as sysargs
 
 # Board dimensions, in millimeters as well as pixels
 BOARD_H = 300
@@ -170,6 +171,8 @@ class DiscreteGraph(object):
         for j in rh:
             for i in rw:
                 v = (j,i)
+                if BaseSemiAlgebraicModel.any_contains(v, obstacles):
+                    continue
                 self.edges[v] = list()
                 for dj, di, dd in DiscreteGraph.NEIGHBOR_DISPLACEMENTS:
                     jj = j + dj; ii = i + di
@@ -256,6 +259,9 @@ class Maze(object):
         return final_node, pixels_explored
 
 if __name__ == "__main__":
+    # Capture the three required arguments
+    assert(len(sysargs) == 4)
+    s_str, g_str, vid_name = sysargs[1:]
     # Construct the hardcoded list of obstacles (can be modified)
     obstacles = [
         # Bottom left circle
@@ -270,24 +276,25 @@ if __name__ == "__main__":
         RectangleModel((20,20), 20, 100),
         RectangleModel((60,20), 20, 150)
     ]
+    # Set the start and goal positions
+    s_comma, g_comma = tuple(st.index(",") for st in (s_str, g_str))
+    s = (int(s_str[:s_comma]), int(s_str[s_comma+1:]))
+    g = (int(g_str[:g_comma]), int(g_str[g_comma+1:]))
     # Build the maze and underlying graph object
     maze = Maze(obstacles)
-    # Set the start and goal positions
-    s = (45,220)
-    g = (200,250)
     # Check if they're traversable positions in the maze, continue if so
     if maze.is_in_board(s) and maze.is_in_board(g):
-        # Build video writer to render the frames at 120 FPS
-        vid_write = cv2.VideoWriter(
-            "maze.mp4",
-            cv2.VideoWriter_fourcc(*'mp4v'),
-            120.0,
-            (BOARD_W, BOARD_H)
-        )
         # Do Dijkstra
         print("Starting Dijsktra...")
         path_node, positions_searched = maze.dijkstra(s,g)
         print("Done. Starting render...")
+        # Build video writer to render the frames at 120 FPS
+        vid_write = cv2.VideoWriter(
+            "{0}.mp4".format(vid_name),
+            cv2.VideoWriter_fourcc(*'mp4v'),
+            120.0,
+            (BOARD_W, BOARD_H)
+        )
         # Build image to be white
         img = np.empty((BOARD_H,BOARD_W,3), dtype=np.uint8)
         img[:] = (255,255,255)
