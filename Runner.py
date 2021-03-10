@@ -2,6 +2,7 @@
 
 import abc
 import cv2
+import numpy as np
 from math import sqrt
 
 # Board dimensions, in millimeters as well as pixels
@@ -253,3 +254,59 @@ class Maze(object):
 
         # If there's no path, the final_node will be null, but pixels_explored could still have content
         return final_node, pixels_explored
+
+if __name__ == "__main__":
+    # Construct the hardcoded list of obstacles (can be modified)
+    obstacles = [
+        # Bottom left circle
+        CircleModel((230,90), 35),
+        # Top middle arch shape
+        RectangleModel((20,200), 10, 30),
+        RectangleModel((20,200), 50, 10),
+        RectangleModel((70,200), 10, 30),
+        # Middle ellipse
+        EllipseModel((155,246), 60, 30),
+        # Other miscellaneous shapes
+        RectangleModel((20,20), 20, 100),
+        RectangleModel((60,20), 20, 150)
+    ]
+    # Build the maze and underlying graph object
+    maze = Maze(obstacles)
+    # Set the start and goal positions
+    s = (45,220)
+    g = (200,250)
+    # Check if they're traversable positions in the maze, continue if so
+    if maze.is_in_board(s) and maze.is_in_board(g):
+        # Build video writer to render the frames at 120 FPS
+        vid_write = cv2.VideoWriter(
+            "maze.mp4",
+            cv2.VideoWriter_fourcc(*'mp4v'),
+            120.0,
+            (BOARD_W, BOARD_H)
+        )
+        # Do Dijkstra
+        print("Starting Dijsktra...")
+        path_node, positions_searched = maze.dijkstra(s,g)
+        print("Done. Starting render...")
+        # Build image to be white
+        img = np.empty((BOARD_H,BOARD_W,3), dtype=np.uint8)
+        img[:] = (255,255,255)
+        img[s] = (0,255,0)
+        img[g[0]-2:g[0]+2,g[1]-2:g[1]+2] = (0,0,255)
+        # Draw the obstacles
+        for ob in obstacles:
+            img = ob.draw_on(img)
+        vid_write.write(img)
+        # Go through the pixels visited
+        for px in positions_searched:
+            img[px] = (255,0,0)
+            vid_write.write(img)
+        # Draw the final path
+        while path_node is not None:
+            img[path_node.position] = (0,255,0)
+            vid_write.write(img)
+            path_node = path_node.parent
+        vid_write.release()
+        print("Finished.")
+    else:
+        print("Either the start {0} or the goal {1} was not valid.".format(s, g))
