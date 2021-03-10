@@ -2,6 +2,11 @@
 
 import abc
 import cv2
+from math import sqrt
+
+# Board dimensions, in millimeters as well as pixels
+BOARD_H = 300
+BOARD_W = 400
 
 # The base semi-algebraic model
 class BaseSemiAlgebraicModel(abc.ABC):
@@ -124,3 +129,48 @@ class EllipseModel(BaseSemiAlgebraicModel):
             (0,0,0),
             -1
         )
+
+# A representation of the traversable portions of the maze
+class DiscreteGraph(object):
+
+    # The square root of 2, to reuse in NEIGHBOR_DISPLACEMENTS
+    R2 = sqrt(2)
+
+    # An 8-tuple of 2-tuples, describing the (y,x) displacements and total distance to each neighbor
+    NEIGHBOR_DISPLACEMENTS = (
+        (-1, -1, R2), (-1, +0, +1), (-1, +1, R2),
+        (+0, -1, +1),               (+0, +1, +1),
+        (+1, -1, R2), (+1, +0, +1), (+1, +1, R2)
+    )
+
+    # A dict, where the key is a vertex, and the value is a list of 2-tuples:
+    # - A vertex is itself a 2-tuple (y,x), where the y and x is the pixel
+    #   position / millimeter displacement from the top left corner of the board
+    # - For the 2-tuple elements:
+    #   - The first element is another vertex that the vertex key can connect to
+    #   - The second element is the distance between these two vertices, it's
+    #     calculated here once and only once to save time
+    edges = None
+
+    # Build the graph with the given obstacles
+    def __init__(self, obstacles):
+        self.build(obstacles)
+
+    # Build the graph with the given obstacles
+    def build(self, obstacles):
+        # Clear the set of edges
+        self.edges = dict()
+
+        # Loop through all the pixels / each millimeter to create the edges by
+        # visiting each pixel's (at most) eight neighbors
+        # A neighbor is valid if it's within the bounds of the maze and is not
+        # inside of any of the given obstacles
+        rh = range(BOARD_H); rw = range(BOARD_W)
+        for j in rh:
+            for i in rw:
+                v = (j,i)
+                self.edges[v] = list()
+                for dj, di, dd in DiscreteGraph.NEIGHBOR_DISPLACEMENTS:
+                    jj = j + dj; ii = i + di
+                    if (jj in rh) and (ii in rw) and (not BaseSemiAlgebraicModel.any_contains((jj,ii), obstacles)):
+                        self.edges[v].append(((jj,ii), dd))
