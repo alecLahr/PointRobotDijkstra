@@ -175,6 +175,24 @@ class DiscreteGraph(object):
                     if (jj in rh) and (ii in rw) and (not BaseSemiAlgebraicModel.any_contains((jj,ii), obstacles)):
                         self.edges[v].append(((jj,ii), dd))
 
+# A single state of the maze's search
+class MazeVertexNode(object):
+
+    # The parent MazeVertexNode to this instance
+    parent = None
+
+    # A 2-tuple, (y,x) coordinate pair
+    position = None
+
+    # The current tentative distance
+    dist = None
+
+    # Constructor, given all values
+    def __init__(self, parent, position, dist,):
+        self.parent = parent
+        self.position = position
+        self.dist = dist
+
 # A maze object that uses a DiscreteGraph instance with some other utilities
 class Maze(object):
 
@@ -188,3 +206,50 @@ class Maze(object):
     # Determine if a coordinate pair is in a traversable portion of the maze
     def is_in_board(self, position):
         return position in self.graph.edges
+
+    # Run Dijkstra's algorithm between a start and goal point
+    def dijkstra(self, start, goal):
+        # Mark every traversable pixel except for the start as initially without a parent and infinitely far
+        vertices = [MazeVertexNode(None, pos, 999999999) for pos in self.graph.edges.keys() if pos != start]
+        vertices.append(MazeVertexNode(None, start, 0))
+        vertex_indices = {v.position:v for v in vertices}
+
+        # Track the pixels that were visited in the order they were, to visualize later
+        pixels_explored = []
+
+        # Start the main part of the algorithm, tracking the node that can be used to recover the path
+        final_node = None
+        while (final_node is None) and (len(vertices) != 0):
+            # Essentially, mark this node as "visited" and capture its position
+            vertex_node = vertices.pop(-1)
+            vnp = vertex_node.position
+            pixels_explored.append(vnp)
+
+            # Check if this is the goal position
+            if vnp == goal:
+                final_node = vertex_node
+                continue
+
+            # Get each of the neighbors of this node by using the graph
+            for neighbor, dist_to_neighbor in self.graph.edges[vnp]:
+                neighbor_node = vertex_indices.get(neighbor, None)
+                if neighbor_node is None:
+                    # This node was already removed, continue to the next neighbor
+                    continue
+                # Calculate the adjusted distance
+                vertex_node_dist = vertex_node.dist + dist_to_neighbor
+                if vertex_node_dist < neighbor_node.dist:
+                    # Set this node as this neighbor's shortest path
+                    vertices.remove(neighbor_node)
+                    neighbor_node.dist = vertex_node_dist
+                    neighbor_node.parent = vertex_node
+                    # Do a less costly sort by simply moving the neighbor node in the list
+                    i = len(vertices) - 1
+                    while True:
+                        if vertices[i].dist >= neighbor_node.dist:
+                            vertices.insert(i + 1, neighbor_node)
+                            break
+                        i = i - 1
+
+        # If there's no path, the final_node will be null, but pixels_explored could still have content
+        return final_node, pixels_explored
