@@ -10,6 +10,93 @@ from sys import argv as sysargs
 BOARD_H = 300
 BOARD_W = 400
 
+# Board Obstacles
+quads = [[36.53, 124.38, 48, 108, 170.87, 194.04, 159.40, 210.42],
+         [200,280,200,230,210,230,210,280],
+         [210,280,210,270,230,270,230,280],
+         [210,240,210,230,230,230,230,240]]
+elips = [[90, 70, 35, 35],
+         [246, 145, 60, 30]]
+
+
+def quad_check(x0, y0, quad):
+    # extract coords out of quad list
+    x1 = quad[0]
+    y1 = quad[1]
+    x2 = quad[2]
+    y2 = quad[3]
+    x3 = quad[4]
+    y3 = quad[5]
+    x4 = quad[6]
+    y4 = quad[7]
+
+    # check if the point is within the restricted half-plane side of each line
+    chk1 = line_check(x0, y0, x1, y1, x2, y2, False, False)
+    chk2 = line_check(x0, y0, x2, y2, x3, y3, False, True)
+    chk3 = line_check(x0, y0, x3, y3, x4, y4, True, True)
+    chk4 = line_check(x0, y0, x4, y4, x1, y1, True, False)
+
+    # check if point is within resitected half place side of all lines --> in object
+    if chk1 and chk2 and chk3 and chk4:
+        return False  # point is in obstacle space
+    else:
+        return True  # point is not in obstacle space
+
+
+def line_check(x0, y0, x1, y1, x2, y2, UD, LR):
+    # UD = True  if object is bottom side of line
+    # UD = False if object is top    side of line
+    # LR = True  if object is left   side of line
+    # LR = False if object is right  side of line
+    if x2 != x1:  # not vertical line
+        m = (y2 - y1) / (x2 - x1)  # get the slope
+        b = y1 - m * x1  # get the intercept
+        # check if point is within the restriced half-plane
+        if (y0 >= m * x0 + b and not UD) or (y0 <= m * x0 + b and UD):
+            return True  # True means point is within the restriced half-plane
+        else:
+            return False  # False means point is not within the restriced half-plane
+
+    else:  # x2 == x1 --> vertical line
+        if (x0 >= x1 and not LR) or (x0 <= x1 and LR):
+            return True  # True means point is within the restriced half-plane
+        else:
+            return False  # False means point is not within the restriced half-plane
+
+
+def elip_check(x0, y0, elip):
+    # extract dimensions out of elip list
+    xc = elip[0]
+    yc = elip[1]
+    a2 = elip[2]**2  # horizontal dimension
+    b2 = elip[3]**2  # vertical dimension
+
+    if (x0 - xc)**2 / a2 + (y0 - yc)**2 / b2 <= 1:  # check if point is within ellipse
+        return False  # point is in obstacle space
+    else:
+        return True  # point is not in obstacle space
+
+
+def check_for_obstacle(x, y, robot_radius, clearance):
+    # returns true if point is not near an obstacle
+    # returns false if point is near an obstacle 
+    
+    r = robot_radius + clearance
+    
+    for i in range(x-r, x+r):
+        for j in range(y-r, y+r):
+            if sqrt((x-i)**2+(y-j)**2) < r:
+                for quad in quads:  # check quads
+                    if not quad_check(i, j, quad):  # see if point is near the quad
+                        return False  # point is near an obstacle
+        
+                for elip in elips:  # check elips
+                    if not elip_check(i, j, elip):  # see if point is near the elip
+                        return False  # point is near an obstacle
+                
+    return True  # point is not near an obstacle
+
+
 # The base semi-algebraic model
 class BaseSemiAlgebraicModel(abc.ABC):
 
