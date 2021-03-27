@@ -378,6 +378,17 @@ class MazeDijkstra(Maze):
     def h(self, n, goal):
         return 0
 
+# A Maze that uses A*
+class MazeAStar(Maze):
+
+    # Build the graph with the list of semi-algebraic models
+    def __init__(self, obstacles, robot_radius, clearance):
+        super().__init__(obstacles, robot_radius, clearance)
+
+    # Overriden
+    def h(self, n, goal):
+        return sqrt((n[1]-goal[1])**2 + (n[0]-goal[0])**2)
+
 def main():
     # Capture required user input
     s = None
@@ -449,11 +460,15 @@ def main():
     ]
     # Build the maze and underlying graph object
     print("Starting maze generation...")
-    maze = Maze(obstacles, robot_radius, clearance)
+    maze = None
+    if mode == 0:
+        maze = MazeDijkstra(obstacles, robot_radius, clearance)
+    elif mode == 1:
+        maze = MazeAStar(obstacles, robot_radius, clearance)
     # Check if they're traversable positions in the maze, continue if so
     if maze.is_in_board(s) and maze.is_in_board(g):
         # Do Dijkstra
-        print("Done. Starting Dijsktra...")
+        print("Done. Planning path...")
         path_node, positions_searched = maze.find(s,g)
         print("Done. Starting render...")
         # Build video writer to render the frames at 120 FPS
