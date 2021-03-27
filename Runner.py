@@ -287,14 +287,18 @@ class MazeVertexNode(object):
     # A 2-tuple, (y,x) coordinate pair
     position = None
 
-    # The current tentative distance
-    dist = None
+    # The current tentative distance from the start to this node
+    distG = None
+
+    # The current tentative distance from this node to the goal, given some heuristic
+    distF = None
 
     # Constructor, given all values
-    def __init__(self, parent, position, dist,):
+    def __init__(self, parent, position, distG, distF):
         self.parent = parent
         self.position = position
-        self.dist = dist
+        self.distG = distG
+        self.distF = distF
 
 # A maze object that uses a DiscreteGraph instance with some other utilities
 class Maze(object):
@@ -313,8 +317,8 @@ class Maze(object):
     # Run Dijkstra's algorithm between a start and goal point
     def dijkstra(self, start, goal):
         # Mark every traversable pixel except for the start as initially without a parent and infinitely far
-        vertices = [MazeVertexNode(None, pos, 999999999) for pos in self.graph.edges.keys() if pos != start]
-        vertices.append(MazeVertexNode(None, start, 0))
+        vertices = [MazeVertexNode(None, pos, 999999999, 0) for pos in self.graph.edges.keys() if pos != start]
+        vertices.append(MazeVertexNode(None, start, 0, 0))
         vertex_indices = {v.position:v for v in vertices}
 
         # Track the pixels that were visited in the order they were, to visualize later
@@ -340,16 +344,16 @@ class Maze(object):
                     # This node was already removed, continue to the next neighbor
                     continue
                 # Calculate the adjusted distance
-                vertex_node_dist = vertex_node.dist + dist_to_neighbor
-                if vertex_node_dist < neighbor_node.dist:
+                vertex_node_distG = vertex_node.distG + dist_to_neighbor
+                if vertex_node_distG < neighbor_node.distG:
                     # Set this node as this neighbor's shortest path
                     vertices.remove(neighbor_node)
-                    neighbor_node.dist = vertex_node_dist
+                    neighbor_node.distG = vertex_node_distG
                     neighbor_node.parent = vertex_node
                     # Do a less costly sort by simply moving the neighbor node in the list
                     i = len(vertices) - 1
                     while True:
-                        if vertices[i].dist >= neighbor_node.dist:
+                        if vertices[i].distG >= neighbor_node.distG:
                             vertices.insert(i + 1, neighbor_node)
                             break
                         i = i - 1
