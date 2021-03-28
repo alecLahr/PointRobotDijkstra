@@ -4,7 +4,6 @@ import abc
 import cv2
 import numpy as np
 from math import sqrt
-from sys import argv as sysargs
 
 # Board dimensions, in millimeters as well as pixels
 BOARD_H = 300
@@ -358,13 +357,59 @@ class Maze(object):
         # If there's no path, the final_node will be null, but pixels_explored could still have content
         return final_node, pixels_explored
 
-if __name__ == "__main__":
-    # Capture the three required arguments
-    assert(len(sysargs) == 4)
-    s_str, g_str, vid_name = sysargs[1:]
-    
-    robot_radius = 1
-    clearance = 0
+def main():
+    # Capture required user input
+    s = None
+    try:
+        s_str = input("Enter the start position: ")
+        s_comma = s_str.index(",")
+        s = (int(s_str[:s_comma]), int(s_str[s_comma+1:]))
+    except:
+        print("Please enter the start position in \"y,x\" format, where y and x are integers.")
+        return
+
+    g = None
+    try:
+        g_str = input("Enter the goal position: ")
+        g_comma = g_str.index(",")
+        g = (int(g_str[:g_comma]), int(g_str[g_comma+1:]))
+    except:
+        print("Please enter the goal position in \"y,x\" format, where y and x are integers.")
+        return
+
+    robot_radius = None
+    try:
+        r_str = input("Enter the robot radius: ")
+        robot_radius = int(r_str)
+    except:
+        print("Please enter the robot radius as an integer.")
+        return
+    if robot_radius <= 0:
+        print("Please enter the robot radius as a positive integer.")
+        return
+
+    clearance = None
+    try:
+        c_str = input("Enter the clearance: ")
+        clearance = int(c_str)
+    except:
+        print("Please enter the clearance as an integer.")
+        return
+    if clearance < 0:
+        print("Please enter the robot radius as a non-negative integer.")
+        return
+
+    mode = None
+    try:
+        m_str = input("Enter the planner to use (0 or Dijkstra, 1 for A*): ")
+        mode = int(m_str)
+    except:
+        print("Please enter either 0 or 1.")
+        return
+    if not ((mode == 0) or (mode == 1)):
+        print("Please enter either 0 or 1.")
+        return
+
     # Construct the hardcoded list of obstacles (can be modified)
     obstacles = [
         # Bottom left circle
@@ -379,16 +424,13 @@ if __name__ == "__main__":
         RectangleModel((20,20), 20, 100),
         RectangleModel((60,20), 20, 150)
     ]
-    # Set the start and goal positions
-    s_comma, g_comma = tuple(st.index(",") for st in (s_str, g_str))
-    s = (int(s_str[:s_comma]), int(s_str[s_comma+1:]))
-    g = (int(g_str[:g_comma]), int(g_str[g_comma+1:]))
     # Build the maze and underlying graph object
+    print("Starting maze generation...")
     maze = Maze(obstacles, robot_radius, clearance)
     # Check if they're traversable positions in the maze, continue if so
     if maze.is_in_board(s) and maze.is_in_board(g):
         # Do Dijkstra
-        print("Starting Dijsktra...")
+        print("Done. Starting Dijsktra...")
         path_node, positions_searched = maze.dijkstra(s,g)
         print("Done. Starting render...")
         # Build video writer to render the frames at 120 FPS
@@ -421,3 +463,6 @@ if __name__ == "__main__":
         print("Finished.")
     else:
         print("Either the start {0} or the goal {1} was not valid.".format(s, g))
+
+if __name__ == "__main__":
+    main()
