@@ -75,9 +75,27 @@ def elip_check(x0, y0, elip):
         return False  # point is in obstacle space
     else:
         return True  # point is not in obstacle space
+    
+    
+
+def setup_graph():
+    obst = np.ones((BOARD_H,BOARD_W))
+    for x in range(BOARD_W):
+        for y in range(BOARD_H):
+            for quad in quads:  # check quads
+                if not quad_check(x, y, quad):  # see if point is near the quad
+                    obst[BOARD_H-y, x] = 0
+                    break
+    
+            for elip in elips:  # check elips
+                if not elip_check(x, y, elip):  # see if point is near the elip
+                    obst[BOARD_H-y, x] = 0
+                    break
+    return obst
+            
 
 
-def check_for_obstacle(x, y, robot_radius, clearance):
+def is_near_obstacle(x, y, robot_radius, clearance, obst):
     # returns true if point is not near an obstacle
     # returns false if point is near an obstacle 
     
@@ -85,16 +103,10 @@ def check_for_obstacle(x, y, robot_radius, clearance):
     
     for i in range(x-r, x+r):
         for j in range(y-r, y+r):
-            if sqrt((x-i)**2+(y-j)**2) < r:
-                for quad in quads:  # check quads
-                    if not quad_check(i, j, quad):  # see if point is near the quad
-                        return False  # point is near an obstacle
-        
-                for elip in elips:  # check elips
-                    if not elip_check(i, j, elip):  # see if point is near the elip
-                        return False  # point is near an obstacle
+            if sqrt((x-i)**2+(y-j)**2) < r and obst[j, i] == 0:
+                return True  # point is near an obstacle
                 
-    return True  # point is not near an obstacle
+    return False  # point is not near an obstacle
 
 
 # The base semi-algebraic model
@@ -242,11 +254,11 @@ class DiscreteGraph(object):
     edges = None
 
     # Build the graph with the given obstacles
-    def __init__(self, obstacles):
-        self.build(obstacles)
+    def __init__(self, obstacles, robot_radius, clearance):
+        self.build(obstacles, robot_radius, clearance)
 
     # Build the graph with the given obstacles
-    def build(self, obstacles):
+    def build(self, obstacles, robot_radius, clearance):
         # Clear the set of edges
         self.edges = dict()
 
@@ -255,15 +267,16 @@ class DiscreteGraph(object):
         # A neighbor is valid if it's within the bounds of the maze and is not
         # inside of any of the given obstacles
         rh = range(BOARD_H); rw = range(BOARD_W)
+        obst = setup_graph()
         for j in rh:
             for i in rw:
                 v = (j,i)
-                if BaseSemiAlgebraicModel.any_contains(v, obstacles):
+                if is_near_obstacle(i, j, robot_radius, clearance, obst):
                     continue
                 self.edges[v] = list()
                 for dj, di, dd in DiscreteGraph.NEIGHBOR_DISPLACEMENTS:
                     jj = j + dj; ii = i + di
-                    if (jj in rh) and (ii in rw) and (not BaseSemiAlgebraicModel.any_contains((jj,ii), obstacles)):
+                    if (jj in rh) and (ii in rw) and not is_near_obstacle(ii, jj, robot_radius, clearance, obst):
                         self.edges[v].append(((jj,ii), dd))
 
 # A single state of the maze's search
@@ -291,8 +304,8 @@ class Maze(object):
     graph = None
 
     # Build the graph with the list of semi-algebraic models
-    def __init__(self, obstacles):
-        self.graph = DiscreteGraph(obstacles)
+    def __init__(self, obstacles, robot_radius, clearance):
+        self.graph = DiscreteGraph(obstacles, robot_radius, clearance)
 
     # Determine if a coordinate pair is in a traversable portion of the maze
     def is_in_board(self, position):
@@ -349,6 +362,9 @@ if __name__ == "__main__":
     # Capture the three required arguments
     assert(len(sysargs) == 4)
     s_str, g_str, vid_name = sysargs[1:]
+    
+    robot_radius = 1
+    clearance = 0
     # Construct the hardcoded list of obstacles (can be modified)
     obstacles = [
         # Bottom left circle
@@ -368,7 +384,7 @@ if __name__ == "__main__":
     s = (int(s_str[:s_comma]), int(s_str[s_comma+1:]))
     g = (int(g_str[:g_comma]), int(g_str[g_comma+1:]))
     # Build the maze and underlying graph object
-    maze = Maze(obstacles)
+    maze = Maze(obstacles, robot_radius, clearance)
     # Check if they're traversable positions in the maze, continue if so
     if maze.is_in_board(s) and maze.is_in_board(g):
         # Do Dijkstra
@@ -382,15 +398,16 @@ if __name__ == "__main__":
             120.0,
             (BOARD_W, BOARD_H)
         )
-        # Build image to be white
+        # Build image to be white and draw the obstacles
+        temp = np.uint8(setup_graph())
+        temp *= 255
         img = np.empty((BOARD_H,BOARD_W,3), dtype=np.uint8)
-        img[:] = (255,255,255)
+        img[:, :, 0] = temp
+        img[:, :, 1] = temp
+        img[:, :, 2] = temp
         img[s] = (0,255,0)
         img[g[0]-2:g[0]+2,g[1]-2:g[1]+2] = (0,0,255)
-        # Draw the obstacles
-        for ob in obstacles:
-            img = ob.draw_on(img)
-        vid_write.write(img)
+
         # Go through the pixels visited
         for px in positions_searched:
             img[px] = (255,0,0)
