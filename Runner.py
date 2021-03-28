@@ -287,17 +287,21 @@ class MazeVertexNode(object):
     # A 2-tuple, (y,x) coordinate pair
     position = None
 
-    # The current tentative distance
-    dist = None
+    # The current tentative distance from the start to this node
+    distG = None
+
+    # The current tentative distance from this node to the goal, given some heuristic
+    distF = None
 
     # Constructor, given all values
-    def __init__(self, parent, position, dist,):
+    def __init__(self, parent, position, distG, distF):
         self.parent = parent
         self.position = position
-        self.dist = dist
+        self.distG = distG
+        self.distF = distF
 
 # A maze object that uses a DiscreteGraph instance with some other utilities
-class Maze(object):
+class Maze(abc.ABC):
 
     # The DiscreteGraph representation of the maze
     graph = None
@@ -310,11 +314,11 @@ class Maze(object):
     def is_in_board(self, position):
         return position in self.graph.edges
 
-    # Run Dijkstra's algorithm between a start and goal point
-    def dijkstra(self, start, goal):
+    # Run a path planning algorithm between a start and goal point
+    def find(self, start, goal):
         # Mark every traversable pixel except for the start as initially without a parent and infinitely far
-        vertices = [MazeVertexNode(None, pos, 999999999) for pos in self.graph.edges.keys() if pos != start]
-        vertices.append(MazeVertexNode(None, start, 0))
+        vertices = [MazeVertexNode(None, pos, 999999999, 999999999) for pos in self.graph.edges.keys() if pos != start]
+        vertices.append(MazeVertexNode(None, start, 0, self.h(start, goal)))
         vertex_indices = {v.position:v for v in vertices}
 
         # Track the pixels that were visited in the order they were, to visualize later
@@ -340,22 +344,50 @@ class Maze(object):
                     # This node was already removed, continue to the next neighbor
                     continue
                 # Calculate the adjusted distance
-                vertex_node_dist = vertex_node.dist + dist_to_neighbor
-                if vertex_node_dist < neighbor_node.dist:
+                vertex_node_distG = vertex_node.distG + dist_to_neighbor
+                if vertex_node_distG < neighbor_node.distG:
                     # Set this node as this neighbor's shortest path
                     vertices.remove(neighbor_node)
-                    neighbor_node.dist = vertex_node_dist
+                    neighbor_node.distG = vertex_node_distG
+                    neighbor_node.distF = vertex_node_distG + self.h(neighbor_node.position, goal)
                     neighbor_node.parent = vertex_node
                     # Do a less costly sort by simply moving the neighbor node in the list
                     i = len(vertices) - 1
                     while True:
-                        if vertices[i].dist >= neighbor_node.dist:
+                        if vertices[i].distF >= neighbor_node.distF:
                             vertices.insert(i + 1, neighbor_node)
                             break
                         i = i - 1
 
         # If there's no path, the final_node will be null, but pixels_explored could still have content
         return final_node, pixels_explored
+
+    # Calculate the tentative remaining distance from n to goal, given some heuristic
+    @abc.abstractmethod
+    def h(self, n, goal):
+        return None
+
+# A Maze that uses Dijkstra
+class MazeDijkstra(Maze):
+
+    # Build the graph with the list of semi-algebraic models
+    def __init__(self, obstacles, robot_radius, clearance):
+        super().__init__(obstacles, robot_radius, clearance)
+
+    # Overriden
+    def h(self, n, goal):
+        return 0
+
+# A Maze that uses A*
+class MazeAStar(Maze):
+
+    # Build the graph with the list of semi-algebraic models
+    def __init__(self, obstacles, robot_radius, clearance):
+        super().__init__(obstacles, robot_radius, clearance)
+
+    # Overriden
+    def h(self, n, goal):
+        return sqrt((n[1]-goal[1])**2 + (n[0]-goal[0])**2)
 
 def main():
     # Capture required user input
@@ -428,12 +460,16 @@ def main():
     ]
     # Build the maze and underlying graph object
     print("Starting maze generation...")
-    maze = Maze(obstacles, robot_radius, clearance)
+    maze = None
+    if mode == 0:
+        maze = MazeDijkstra(obstacles, robot_radius, clearance)
+    elif mode == 1:
+        maze = MazeAStar(obstacles, robot_radius, clearance)
     # Check if they're traversable positions in the maze, continue if so
     if maze.is_in_board(s) and maze.is_in_board(g):
         # Do Dijkstra
-        print("Done. Starting Dijsktra...")
-        path_node, positions_searched = maze.dijkstra(s,g)
+        print("Done. Planning path...")
+        path_node, positions_searched = maze.find(s,g)
         print("Done. Starting render...")
         # Build video writer to render the frames at 120 FPS
         vid_write = cv2.VideoWriter(
