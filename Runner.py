@@ -253,11 +253,11 @@ class DiscreteGraph(object):
     edges = None
 
     # Build the graph with the given obstacles
-    def __init__(self, obstacles, robot_radius, clearance):
-        self.build(obstacles, robot_radius, clearance)
+    def __init__(self, robot_radius, clearance):
+        self.build(robot_radius, clearance)
 
     # Build the graph with the given obstacles
-    def build(self, obstacles, robot_radius, clearance):
+    def build(self, robot_radius, clearance):
         # Clear the set of edges
         self.edges = dict()
 
@@ -269,9 +269,9 @@ class DiscreteGraph(object):
         obst = setup_graph()
         for j in rh:
             for i in rw:
-                v = (j,i)
                 if is_near_obstacle(i, j, robot_radius, clearance, obst):
                     continue
+                v = (j,i)
                 self.edges[v] = list()
                 for dj, di, dd in DiscreteGraph.NEIGHBOR_DISPLACEMENTS:
                     jj = j + dj; ii = i + di
@@ -307,8 +307,8 @@ class Maze(abc.ABC):
     graph = None
 
     # Build the graph with the list of semi-algebraic models
-    def __init__(self, obstacles, robot_radius, clearance):
-        self.graph = DiscreteGraph(obstacles, robot_radius, clearance)
+    def __init__(self, robot_radius, clearance):
+        self.graph = DiscreteGraph(robot_radius, clearance)
 
     # Determine if a coordinate pair is in a traversable portion of the maze
     def is_in_board(self, position):
@@ -371,8 +371,8 @@ class Maze(abc.ABC):
 class MazeDijkstra(Maze):
 
     # Build the graph with the list of semi-algebraic models
-    def __init__(self, obstacles, robot_radius, clearance):
-        super().__init__(obstacles, robot_radius, clearance)
+    def __init__(self, robot_radius, clearance):
+        super().__init__(robot_radius, clearance)
 
     # Overriden
     def h(self, n, goal):
@@ -382,8 +382,8 @@ class MazeDijkstra(Maze):
 class MazeAStar(Maze):
 
     # Build the graph with the list of semi-algebraic models
-    def __init__(self, obstacles, robot_radius, clearance):
-        super().__init__(obstacles, robot_radius, clearance)
+    def __init__(self, robot_radius, clearance):
+        super().__init__(robot_radius, clearance)
 
     # Overriden
     def h(self, n, goal):
@@ -444,27 +444,13 @@ def main():
 
     vid_name = input("Enter the name of the output file (no file extension, ex. 'output1'): ")
 
-    # Construct the hardcoded list of obstacles (can be modified)
-    obstacles = [
-        # Bottom left circle
-        CircleModel((230,90), 35),
-        # Top middle arch shape
-        RectangleModel((20,200), 10, 30),
-        RectangleModel((20,200), 50, 10),
-        RectangleModel((70,200), 10, 30),
-        # Middle ellipse
-        EllipseModel((155,246), 60, 30),
-        # Other miscellaneous shapes
-        RectangleModel((20,20), 20, 100),
-        RectangleModel((60,20), 20, 150)
-    ]
     # Build the maze and underlying graph object
     print("Starting maze generation...")
     maze = None
     if mode == 0:
-        maze = MazeDijkstra(obstacles, robot_radius, clearance)
+        maze = MazeDijkstra(robot_radius, clearance)
     elif mode == 1:
-        maze = MazeAStar(obstacles, robot_radius, clearance)
+        maze = MazeAStar(robot_radius, clearance)
     # Check if they're traversable positions in the maze, continue if so
     if maze.is_in_board(s) and maze.is_in_board(g):
         # Do Dijkstra
