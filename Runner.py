@@ -107,129 +107,6 @@ def is_near_obstacle(x, y, robot_radius, clearance, obst):
                 
     return False  # point is not near an obstacle
 
-
-# The base semi-algebraic model
-class BaseSemiAlgebraicModel(abc.ABC):
-
-    # The (y,x) 2-tuple coordinates
-    position = None
-
-    # Capture the y,x position
-    def __init__(self, position):
-        self.position = position
-
-    # Break the position and given coordinates as a 4-tuple
-    def get_coords(self, coord):
-        return self.position[0], self.position[1], coord[0], coord[1]
-
-    # Check if any of the given models contain the given coordinate
-    @staticmethod
-    def any_contains(coord, models):
-        return any(m.contains(coord) for m in models)
-
-    # Check if this model contains the given coordinate
-    @abc.abstractmethod
-    def contains(self, coord):
-        return False
-
-    # Draw this shape on the given image
-    @abc.abstractmethod
-    def draw_on(self, img):
-        return None
-
-# A model for a rectangle
-class RectangleModel(BaseSemiAlgebraicModel):
-
-    # The height and width of the rectangle
-    h = None
-    w = None
-
-    # Take the position to be the top-left corner of the rectangle, as well as its height and width
-    def __init__(self, position, h, w):
-        super().__init__(position)
-        self.h = h
-        self.w = w
-
-    # Overriden
-    def contains(self, coord):
-        py, px, cy, cx = self.get_coords(coord)
-        return (cx >= px) and (cx <= px+self.w) and (cy >= py) and (cy <= py+self.h)
-
-    # Overriden
-    def draw_on(self, img):
-        return cv2.rectangle(
-            img,
-            (self.position[1], self.position[0]),
-            (self.position[1]+self.w, self.position[0]+self.h),
-            (0,0,0),
-            -1
-        )
-
-# A model for a square
-class SquareModel(RectangleModel):
-
-    # Uses the rectangle model but assumes width==height
-    def __init__(self, position, s):
-        super().__init__(position, s, s)
-
-# A model for a circle
-class CircleModel(BaseSemiAlgebraicModel):
-
-    # The radius of the circle
-    r = None
-
-    # Take the position to be the center of the circle, as well as the radius
-    def __init__(self, position, r):
-        super().__init__(position)
-        self.r = r
-
-    # Overriden
-    def contains(self, coord):
-        py, px, cy, cx = self.get_coords(coord)
-        return (cx-px)**2 + (cy-py)**2 <= self.r**2
-
-    # Overriden
-    def draw_on(self, img):
-        return cv2.circle(
-            img,
-            (self.position[1], self.position[0]),
-            self.r,
-            (0,0,0),
-            -1
-        )
-
-# A model for an ellipse
-class EllipseModel(BaseSemiAlgebraicModel):
-
-    # The radius for each of the x and y axes
-    rx = None
-    ry = None
-
-    # Take the position to be the center of the ellipse, as well as the radii
-    def __init__(self, position, rx, ry):
-        super().__init__(position)
-        self.rx = rx
-        self.ry = ry
-
-    # Overriden
-    def contains(self, coord):
-        k, h, cy, cx = self.get_coords(coord)
-        rx2 = self.rx**2; ry2 = self.ry**2
-        return (ry2*(cx-h)**2) + (rx2*(cy-k)**2) <= rx2*ry2
-
-    # Overriden
-    def draw_on(self, img):
-        return cv2.ellipse(
-            img,
-            (self.position[1], self.position[0]),
-            (self.rx, self.ry),
-            0,
-            0,
-            360,
-            (0,0,0),
-            -1
-        )
-
 # A representation of the traversable portions of the maze
 class DiscreteGraph(object):
 
@@ -253,11 +130,11 @@ class DiscreteGraph(object):
     edges = None
 
     # Build the graph with the given obstacles
-    def __init__(self, obstacles, robot_radius, clearance):
-        self.build(obstacles, robot_radius, clearance)
+    def __init__(self, robot_radius, clearance):
+        self.build(robot_radius, clearance)
 
     # Build the graph with the given obstacles
-    def build(self, obstacles, robot_radius, clearance):
+    def build(self, robot_radius, clearance):
         # Clear the set of edges
         self.edges = dict()
 
@@ -269,9 +146,9 @@ class DiscreteGraph(object):
         obst = setup_graph()
         for j in rh:
             for i in rw:
-                v = (j,i)
                 if is_near_obstacle(i, j, robot_radius, clearance, obst):
                     continue
+                v = (j,i)
                 self.edges[v] = list()
                 for dj, di, dd in DiscreteGraph.NEIGHBOR_DISPLACEMENTS:
                     jj = j + dj; ii = i + di
@@ -307,8 +184,8 @@ class Maze(abc.ABC):
     graph = None
 
     # Build the graph with the list of semi-algebraic models
-    def __init__(self, obstacles, robot_radius, clearance):
-        self.graph = DiscreteGraph(obstacles, robot_radius, clearance)
+    def __init__(self, robot_radius, clearance):
+        self.graph = DiscreteGraph(robot_radius, clearance)
 
     # Determine if a coordinate pair is in a traversable portion of the maze
     def is_in_board(self, position):
@@ -371,8 +248,8 @@ class Maze(abc.ABC):
 class MazeDijkstra(Maze):
 
     # Build the graph with the list of semi-algebraic models
-    def __init__(self, obstacles, robot_radius, clearance):
-        super().__init__(obstacles, robot_radius, clearance)
+    def __init__(self, robot_radius, clearance):
+        super().__init__(robot_radius, clearance)
 
     # Overriden
     def h(self, n, goal):
@@ -382,8 +259,8 @@ class MazeDijkstra(Maze):
 class MazeAStar(Maze):
 
     # Build the graph with the list of semi-algebraic models
-    def __init__(self, obstacles, robot_radius, clearance):
-        super().__init__(obstacles, robot_radius, clearance)
+    def __init__(self, robot_radius, clearance):
+        super().__init__(robot_radius, clearance)
 
     # Overriden
     def h(self, n, goal):
@@ -444,27 +321,13 @@ def main():
 
     vid_name = input("Enter the name of the output file (no file extension, ex. 'output1'): ")
 
-    # Construct the hardcoded list of obstacles (can be modified)
-    obstacles = [
-        # Bottom left circle
-        CircleModel((230,90), 35),
-        # Top middle arch shape
-        RectangleModel((20,200), 10, 30),
-        RectangleModel((20,200), 50, 10),
-        RectangleModel((70,200), 10, 30),
-        # Middle ellipse
-        EllipseModel((155,246), 60, 30),
-        # Other miscellaneous shapes
-        RectangleModel((20,20), 20, 100),
-        RectangleModel((60,20), 20, 150)
-    ]
     # Build the maze and underlying graph object
     print("Starting maze generation...")
     maze = None
     if mode == 0:
-        maze = MazeDijkstra(obstacles, robot_radius, clearance)
+        maze = MazeDijkstra(robot_radius, clearance)
     elif mode == 1:
-        maze = MazeAStar(obstacles, robot_radius, clearance)
+        maze = MazeAStar(robot_radius, clearance)
     # Check if they're traversable positions in the maze, continue if so
     if maze.is_in_board(s) and maze.is_in_board(g):
         # Do Dijkstra
