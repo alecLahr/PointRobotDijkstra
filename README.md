@@ -1,14 +1,16 @@
 # PointRobotDijkstra
 
-Perform Dijkstra's algorithm and visualize the generated path
-from start to goal positions, with obstacles avoided using
+Perform Dijkstra's or A* algorithm and visualize the generated
+path from start to goal positions, with obstacles avoided using
 semi-algebraic models. Ran with Python3.
 
-This program has three required arguments: the start coordinates,
-the goal coordinates, and the name of the output video. Both pairs
-of coordinates should follow the form "y,x", including the comma
-but excluding the quotes, from the top-left corner of the window.
-The name of the video should just be a simple name with no extension
-(it will be an MP4 product). Example:
+This program prompts the user for six inputs:
+- The start position (y,x)
+- The goal position (y,x)
+- The "robot" radius (a positive integer)
+- The clearance the robot needs from obstacles (nonnegative int)
+- Whether to use Dijkstra or A*
+- The name of the video should just be a simple name with no extension
+(it will be an MP4 product)
 
-./Runner.py 10,20 100,125 output1
+To run, simply execute Runner.py in a console environment.
