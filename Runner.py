@@ -85,13 +85,14 @@ def check_for_obstacle(x, y, robot_radius, clearance):
     
     for i in range(x-r, x+r):
         for j in range(y-r, y+r):
-            for quad in quads:  # check quads
-                if not quad_check(i, j, quad):  # see if point is near the quad
-                    return False  # point is near an obstacle
-    
-            for elip in elips:  # check elips
-                if not elip_check(i, j, elip):  # see if point is near the elip
-                    return False  # point is near an obstacle
+            if sqrt((x-i)**2+(y-j)**2) < r:
+                for quad in quads:  # check quads
+                    if not quad_check(i, j, quad):  # see if point is near the quad
+                        return False  # point is near an obstacle
+        
+                for elip in elips:  # check elips
+                    if not elip_check(i, j, elip):  # see if point is near the elip
+                        return False  # point is near an obstacle
                 
     return True  # point is not near an obstacle
 
