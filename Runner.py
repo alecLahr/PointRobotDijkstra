@@ -102,10 +102,36 @@ def is_near_obstacle(x, y, robot_radius, clearance, obst):
     
     for i in range(x-r, x+r):
         for j in range(y-r, y+r):
-            if sqrt((x-i)**2+(y-j)**2) < r and obst[j, i] == 0:
-                return True  # point is near an obstacle
+            if i >= 0 and j >= 0 and i < BOARD_W and j < BOARD_H:  # makes sure point is within bounds
+                if sqrt((x-i)**2+(y-j)**2) < r and obst[j, i] == 0:
+                    return True  # point is near an obstacle
                 
     return False  # point is not near an obstacle
+
+
+#def is_duplicate_node_Astar(x, y, theta, thresh = 0.5, explored = []):
+#    # checks if a node for A* has been explored before
+#    # pass in x,y,theta coords of node - thresh is optional but be consistent
+#    # first function call should be without the explored array
+#    # return bool and explored array
+#    
+#    # create the explored array if not already created
+#    if type(explored) == list:
+#        explored = np.uint8(np.zeros((int(BOARD_W/thresh), int(BOARD_H/thresh), int(360/30))))
+#    
+#    # convert passes vars to the explored array's coordinate system
+#    x = int(round(x/thresh))
+#    y = int(round(y/thresh))
+#    theta = int(round((theta%360)/30))
+#    
+#    # node has been explored
+#    if explored[x, y, theta]:  
+#        return True, explored
+#    
+#    # node has not been explored
+#    explored[x, y, theta] = 1
+#    return False, explored
+
 
 # A representation of the traversable portions of the maze
 class DiscreteGraph(object):
