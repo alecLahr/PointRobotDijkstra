@@ -75,9 +75,8 @@ def elip_check(x0, y0, elip):
     else:
         return True  # point is not in obstacle space
     
-    
 
-def setup_graph():
+def setup_graph(robot_radius, clearance, point_robot = True):
     obst = np.ones((BOARD_H,BOARD_W))
     for x in range(BOARD_W):
         for y in range(BOARD_H):
@@ -90,23 +89,25 @@ def setup_graph():
                 if not elip_check(x, y, elip):  # see if point is near the elip
                     obst[BOARD_H-y, x] = 0
                     break
-    return obst
-            
-
-
-def is_near_obstacle(x, y, robot_radius, clearance, obst):
-    # returns true if point is not near an obstacle
-    # returns false if point is near an obstacle 
-    
-    r = robot_radius + clearance
-    
-    for i in range(x-r, x+r):
-        for j in range(y-r, y+r):
-            if i >= 0 and j >= 0 and i < BOARD_W and j < BOARD_H:  # makes sure point is within bounds
-                if sqrt((x-i)**2+(y-j)**2) < r and obst[j, i] == 0:
-                    return True  # point is near an obstacle
                 
-    return False  # point is not near an obstacle
+    if not point_robot:  # used to override the expansion for the vizualization step
+        return obst
+                       
+    newObst = np.ones((BOARD_H,BOARD_W))  # create new obstacle array that will have r
+    r = robot_radius + clearance  # point robot radius
+    for x in range(BOARD_W):
+        for y in range(BOARD_H):
+            for i in range(x-r, x+r):  # window each pixel and check for an obstacle in radius
+                for j in range(y-r, y+r):
+                    if i >= 0 and j >= 0 and i < BOARD_W and j < BOARD_H:  # makes sure point is within bounds
+                        if obst[j, i] == 0 and sqrt((x-i)**2+(y-j)**2) < r:  # if window point is in obstacle
+                            newObst[y, x] = 0
+                            break
+                else:
+                    continue
+                break
+            
+    return newObst            
 
 
 #def is_duplicate_node_Astar(x, y, theta, thresh = 0.5, explored = []):
@@ -169,16 +170,16 @@ class DiscreteGraph(object):
         # A neighbor is valid if it's within the bounds of the maze and is not
         # inside of any of the given obstacles
         rh = range(BOARD_H); rw = range(BOARD_W)
-        obst = setup_graph()
+        obst = setup_graph(robot_radius, clearance)  # creates the obstacle space. 0 for obstacle, 1 for open space
         for j in rh:
             for i in rw:
-                if is_near_obstacle(i, j, robot_radius, clearance, obst):
+                if obst[j, i] == 0:
                     continue
                 v = (j,i)
                 self.edges[v] = list()
                 for dj, di, dd in DiscreteGraph.NEIGHBOR_DISPLACEMENTS:
                     jj = j + dj; ii = i + di
-                    if (jj in rh) and (ii in rw) and not is_near_obstacle(ii, jj, robot_radius, clearance, obst):
+                    if (jj in rh) and (ii in rw) and not obst[jj, ii] == 0:
                         self.edges[v].append(((jj,ii), dd))
 
 # A single state of the maze's search
@@ -368,7 +369,7 @@ def main():
             (BOARD_W, BOARD_H)
         )
         # Build image to be white and draw the obstacles
-        temp = np.uint8(setup_graph())
+        temp = np.uint8(setup_graph(robot_radius, clearance, point_robot = False))
         temp *= 255
         img = np.empty((BOARD_H,BOARD_W,3), dtype=np.uint8)
         img[:, :, 0] = temp
