@@ -204,7 +204,7 @@ class Maze(object):
                             n = MazeVertexNode(None, v, 999999999, 999999999)
                             remaining_nodes.append(n)
                             node_indices[v] = n
-            print("  - building initial priority queue for A*: {0}/{1}".format(j, GRID_H), end="\r")
+            print("\r  - building initial priority queue for A*: {0}/{1}".format(j, GRID_H), end="\r")
         print()
         start_node = MazeVertexNode(None, start, 0, self.h(start, goal))
         remaining_nodes.append(start_node)
@@ -274,7 +274,7 @@ class Maze(object):
             # Add this position as having visited each of these neighbors
             nodes_visited.append(((ni, nj), neighbors_explored))
             pxidx = pxidx + 1
-            print("Visited {0}, {1} remain".format(pxidx, len(remaining_nodes)), end="\r")
+            print("\rVisited {0}, {1} remain".format(pxidx, len(remaining_nodes)), end="\r")
 
         # If there's no path, the final_node will be null, but nodes_visited could still have content
         return final_node, nodes_visited
@@ -343,12 +343,14 @@ def main():
         print("Done. Planning path...")
         path_node, nodes_visited = maze.astar(s,g,step)
         print("Done (visited {0} positions). Starting render...".format(len(nodes_visited)))
+        
+        scl = 4  # output video scale factor
         # Build video writer to render the frames at 120 FPS
         vid_write = cv2.VideoWriter(
             "{0}.mp4".format(vid_name),
             cv2.VideoWriter_fourcc(*'mp4v'),
             120.0,
-            (BOARD_W, BOARD_H)
+            (BOARD_W*scl, BOARD_H*scl)
         )
         # Build image to be white and draw the obstacles
         temp = np.uint8(setup_graph(robot_radius, clearance, point_robot = False))
@@ -359,6 +361,7 @@ def main():
         img[:, :, 2] = temp
         img[s[:2]] = (0,255,0)
         img[g[0]-2:g[0]+2,g[1]-2:g[1]+2] = (0,0,255)
+        img = cv2.resize(img, (BOARD_W*scl, BOARD_H*scl), interpolation = cv2.INTER_NEAREST)
 
         # Go through the pixels visited
         for conn in nodes_visited:
@@ -366,8 +369,8 @@ def main():
             for dest in conn[1]:
                 img = cv2.line(
                     img,
-                    (int(src[0]/2), int(src[1]/2)),
-                    (int(dest[0]/2), int(dest[1]/2)),
+                    (int(src[0]/2*scl), int(src[1]/2*scl)),
+                    (int(dest[0]/2*scl), int(dest[1]/2*scl)),
                     (255,0,0),
                     1
                 )
@@ -375,8 +378,8 @@ def main():
         # Draw the final path
         img = cv2.line(
             img,
-            (int(path_node.position[1]/2), int(path_node.position[0]/2)),
-            (int(path_node.parent.position[1]/2), int(path_node.parent.position[0]/2)),
+            (int(path_node.position[1]/2*scl), int(path_node.position[0]/2*scl)),
+            (int(path_node.parent.position[1]/2*scl), int(path_node.parent.position[0]/2*scl)),
             (0,255,0),
             1
         )
@@ -386,8 +389,8 @@ def main():
         while path_node.parent is not None:
             img = cv2.line(
                 img,
-                (int(path_node.position[1]/2), int(path_node.position[0]/2)),
-                (int(path_node.parent.position[1]/2), int(path_node.parent.position[0]/2)),
+                (int(path_node.position[1]/2*scl), int(path_node.position[0]/2*scl)),
+                (int(path_node.parent.position[1]/2*scl), int(path_node.parent.position[0]/2*scl)),
                 (0,255,0),
                 1
             )

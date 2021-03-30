@@ -110,30 +110,6 @@ def setup_graph(robot_radius, clearance, point_robot = True):
     return newObst            
 
 
-#def is_duplicate_node_Astar(x, y, theta, thresh = 0.5, explored = []):
-#    # checks if a node for A* has been explored before
-#    # pass in x,y,theta coords of node - thresh is optional but be consistent
-#    # first function call should be without the explored array
-#    # return bool and explored array
-#    
-#    # create the explored array if not already created
-#    if type(explored) == list:
-#        explored = np.uint8(np.zeros((int(BOARD_W/thresh), int(BOARD_H/thresh), int(360/30))))
-#    
-#    # convert passes vars to the explored array's coordinate system
-#    x = int(round(x/thresh))
-#    y = int(round(y/thresh))
-#    theta = int(round((theta%360)/30))
-#    
-#    # node has been explored
-#    if explored[x, y, theta]:  
-#        return True, explored
-#    
-#    # node has not been explored
-#    explored[x, y, theta] = 1
-#    return False, explored
-
-
 # A representation of the traversable portions of the maze
 class DiscreteGraph(object):
 
@@ -282,17 +258,6 @@ class MazeDijkstra(Maze):
     def h(self, n, goal):
         return 0
 
-# A Maze that uses A*
-class MazeAStar(Maze):
-
-    # Build the graph with the list of semi-algebraic models
-    def __init__(self, robot_radius, clearance):
-        super().__init__(robot_radius, clearance)
-
-    # Overriden
-    def h(self, n, goal):
-        return sqrt((n[1]-goal[1])**2 + (n[0]-goal[0])**2)
-
 def main():
     # Capture required user input
     s = None
@@ -335,26 +300,11 @@ def main():
         print("Please enter the robot radius as a non-negative integer.")
         return
 
-    mode = None
-    try:
-        m_str = input("Enter the planner to use (0 or Dijkstra, 1 for A*): ")
-        mode = int(m_str)
-    except:
-        print("Please enter either 0 or 1.")
-        return
-    if not ((mode == 0) or (mode == 1)):
-        print("Please enter either 0 or 1.")
-        return
-
     vid_name = input("Enter the name of the output file (no file extension, ex. 'output1'): ")
 
     # Build the maze and underlying graph object
     print("Starting maze generation...")
-    maze = None
-    if mode == 0:
-        maze = MazeDijkstra(robot_radius, clearance)
-    elif mode == 1:
-        maze = MazeAStar(robot_radius, clearance)
+    maze = MazeDijkstra(robot_radius, clearance)
     # Check if they're traversable positions in the maze, continue if so
     if maze.is_in_board(s) and maze.is_in_board(g):
         # Do Dijkstra
