@@ -204,7 +204,7 @@ class Maze(object):
                             n = DoublyLinkNode(MazeVertexNode(None, v, 999999999, 999999999), prev_n)
                             link_node_indices[v] = n
                             prev_n = n
-            print("\r  - building initial priority queue for A*: {0}/{1}".format(j, GRID_H), end="\r")
+            print("\r  - building initial priority queue for A*: {0}/{1}".format(j+1, GRID_H), end="\r")
         print()
         start_node = DoublyLinkNode(MazeVertexNode(None, start, 0, self.h(start, goal)), prev_n)
         link_node_indices[start] = start_node
@@ -362,7 +362,7 @@ def main():
         vid_write = cv2.VideoWriter(
             "{0}.mp4".format(vid_name),
             cv2.VideoWriter_fourcc(*'mp4v'),
-            120.0,
+            30.0,
             (BOARD_W*scl, BOARD_H*scl)
         )
         # Build image to be white and draw the obstacles
@@ -377,23 +377,33 @@ def main():
         img = cv2.resize(img, (BOARD_W*scl, BOARD_H*scl), interpolation = cv2.INTER_NEAREST)
 
         # Go through the pixels visited
-        for conn in nodes_visited:
+        N = len(nodes_visited)
+        for i in range(N):
+            conn = nodes_visited[i]
             src = conn[0]
             for dest in conn[1]:
                 img = cv2.line(
                     img,
                     (int(src[0]/2*scl), int(src[1]/2*scl)),
                     (int(dest[0]/2*scl), int(dest[1]/2*scl)),
-                    (255,0,0),
+                    (255,120,120),
                     1
                 )
+            
+            # ramp up video search speed
+            if i<N/100 and i%3==0:
                 vid_write.write(img)
+            elif i<N/10 and i%10==0:
+                vid_write.write(img)
+            elif i%50 or i==N-1:
+                vid_write.write(img)
+            
         # Draw the final path
         img = cv2.line(
             img,
             (int(path_node.position[1]/2*scl), int(path_node.position[0]/2*scl)),
             (int(path_node.parent.position[1]/2*scl), int(path_node.parent.position[0]/2*scl)),
-            (0,255,0),
+            (0,0,255),
             1
         )
         for i in range(10):
@@ -404,10 +414,10 @@ def main():
                 img,
                 (int(path_node.position[1]/2*scl), int(path_node.position[0]/2*scl)),
                 (int(path_node.parent.position[1]/2*scl), int(path_node.parent.position[0]/2*scl)),
-                (0,255,0),
+                (0,0,255),
                 1
             )
-            for i in range(10):
+            for i in range(int(step/2)):
                 vid_write.write(img)
             path_node = path_node.parent
         vid_write.release()
