@@ -137,36 +137,36 @@ class MazeVertexNode(object):
         self.distG = distG
         self.distF = distF
 
-    # 
-    @staticmethod
-    def resort_queue_idx(nodes, low, high, f):
-        if high < low:
-            return -1
-        idx = (high + low) // 2
-        currF = nodes[idx].distF
-        if idx == (len(nodes) - 1):
-            if currF >= f:
-                return idx + 1
-            else:
-                # look left in the array
-                return MazeVertexNode.resort_queue_idx(nodes, low, idx-1, f)
-        elif idx == 0:
-            if currF <= f:
-                return 0
-            else:
-                # look right in the array
-                return MazeVertexNode.resort_queue_idx(nodes, idx+1, high, f)
-        else:
-            if (currF >= f) and (nodes[idx+1].distF <= f):
-                return idx + 1
-            elif f > currF:
-                # look left in the array
-                return MazeVertexNode.resort_queue_idx(nodes, low, idx-1, f)
-            else:
-                # look right in the array
-                return MazeVertexNode.resort_queue_idx(nodes, idx+1, high, f)
+# A link in a priorty queue chain
+class DoublyLinkNode(object):
 
-# 
+    # An instance of MazeVertexNode
+    vertex_node = None
+
+    # The left / lower priority DoublyLinkNode
+    link_parent = None
+
+    # The right / higher priority DoublyLinkNode
+    link_child = None
+
+    # Create a link with a vertex node and parent
+    def __init__(self, vertex_node, link_parent):
+        self.vertex_node = vertex_node
+        self.link_parent = link_parent
+        self.link_child = None
+        if self.link_parent != None:
+            self.link_parent.link_child = self
+
+    # Helper function to remove this node from a chain it's in
+    def remove_from_chain(self):
+        if self.link_parent != None:
+            self.link_parent.link_child = self.link_child
+        if self.link_child != None:
+            self.link_child.link_parent = self.link_parent
+        self.link_parent = None
+        self.link_child = None
+
+# A pathfinding object which builds a representation of the underlying maze
 class Maze(object):
 
     # The DiscreteGraph representation of the maze
@@ -193,22 +193,24 @@ class Maze(object):
     def astar(self, start, goal, step):
         start = start[0]*2, start[1]*2, start[2]
         goal = goal[0]*2, goal[1]*2, goal[2]
-        remaining_nodes = []
-        node_indices = {}
+        link_node_indices = {}
+        prev_n = None
         for j in range(GRID_H):
             for i in range(GRID_W):
                 if self.is_in_board(int(j/2), int(i/2)):
                     for o in range(GRID_O):
                         v = (j,i,o)
                         if v != start:
-                            n = MazeVertexNode(None, v, 999999999, 999999999)
-                            remaining_nodes.append(n)
-                            node_indices[v] = n
+                            n = DoublyLinkNode(MazeVertexNode(None, v, 999999999, 999999999), prev_n)
+                            link_node_indices[v] = n
+                            prev_n = n
             print("\r  - building initial priority queue for A*: {0}/{1}".format(j, GRID_H), end="\r")
         print()
-        start_node = MazeVertexNode(None, start, 0, self.h(start, goal))
-        remaining_nodes.append(start_node)
-        node_indices[start] = start_node
+        start_node = DoublyLinkNode(MazeVertexNode(None, start, 0, self.h(start, goal)), prev_n)
+        link_node_indices[start] = start_node
+
+        # The next node to process in the priority queue, initialized to be the start node
+        node_to_visit = start_node
 
         # Track the nodes that were visited in the order they were, to visualize later
         nodes_visited = []
@@ -216,14 +218,15 @@ class Maze(object):
         # Start the main part of the algorithm, tracking the node that can be used to recover the path
         final_node = None
         pxidx = 0
-        while (final_node is None) and (len(remaining_nodes) != 0):
+        while (final_node is None) and (node_to_visit != None):
             # Essentially, mark this node as "visited" and capture its position
-            node = remaining_nodes.pop(-1)
-            np = node.position
+            node = node_to_visit
+            np = node.vertex_node.position
+            del link_node_indices[np]
 
             # Check if this is the goal position
             if self.dist(np, goal) <= 1.5*step:
-                final_node = node
+                final_node = node.vertex_node
                 continue
 
             # Track the neighbors of this node that were explored
@@ -239,7 +242,7 @@ class Maze(object):
                 ii = int(ni + (step * cos(theta)))
                 neighbor = (jj,ii,ori)
 
-                neighbor_node = node_indices.get(neighbor, None)
+                neighbor_node = link_node_indices.get(neighbor, None)
                 if neighbor_node is None:
                     # This node was already visited and removed, continue to the next neighbor
                     continue
@@ -248,33 +251,43 @@ class Maze(object):
                 neighbors_explored.append((ii, jj))
 
                 # Calculate the adjusted distance
-                node_distG = node.distG + self.dist(np, neighbor)
-                if node_distG < neighbor_node.distG:
+                node_distG = node.vertex_node.distG + self.dist(np, neighbor)
+                if node_distG < neighbor_node.vertex_node.distG:
                     # Set this node as this neighbor's shortest path
-                    remaining_nodes.remove(neighbor_node)
-                    neighbor_node.distG = node_distG
-                    neighbor_node.distF = node_distG + self.h(neighbor, goal)
-                    neighbor_node.parent = node
+                    neighbor_node.remove_from_chain()
+                    neighbor_node.vertex_node.distG = node_distG
+                    neighbor_node.vertex_node.distF = node_distG + self.h(neighbor, goal)
+                    neighbor_node.vertex_node.parent = node.vertex_node
                     # Do a less costly sort by simply moving the neighbor node in the list
                     # If early on in the program, just search from right to left
-                    new_idx = None
-                    if len(nodes_visited) < 100000:
-                        new_idx = len(remaining_nodes) - 1
-                        while True:
-                            if remaining_nodes[new_idx].distF >= neighbor_node.distF:
-                                new_idx = new_idx + 1
-                                break
-                            new_idx = new_idx - 1
-                    else:
-                        new_idx = MazeVertexNode.resort_queue_idx(remaining_nodes, 0, len(remaining_nodes), neighbor_node.distF)
-                        if new_idx == -1:
-                            raise ValueError("Could not sort node.")
-                    remaining_nodes.insert(new_idx, neighbor_node)
+                    potential_new_link_parent = node_to_visit
+                    while True:
+                        if potential_new_link_parent.vertex_node.distF >= neighbor_node.vertex_node.distF:
+                            # Found where the node should be placed in the chain, insert it
+                            neighbor_node.link_parent = potential_new_link_parent
+                            neighbor_node.link_child = potential_new_link_parent.link_child
+                            if potential_new_link_parent.link_child != None:
+                                potential_new_link_parent.link_child.link_parent = neighbor_node
+                            potential_new_link_parent.link_child = neighbor_node
+                            break
+                        elif potential_new_link_parent.link_parent is None:
+                            # This node becomes the new end (lowest priority)
+                            neighbor_node.link_parent = None
+                            neighbor_node.link_child = potential_new_link_parent
+                            potential_new_link_parent.link_parent = neighbor_node
+                            break
+                        else:
+                            # Have not found the end yet
+                            potential_new_link_parent = potential_new_link_parent.link_parent
 
             # Add this position as having visited each of these neighbors
             nodes_visited.append(((ni, nj), neighbors_explored))
             pxidx = pxidx + 1
-            print("\rVisited {0}, {1} remain".format(pxidx, len(remaining_nodes)), end="\r")
+            print("\rVisited {0}".format(pxidx), end="\r")
+
+            # Continue to the next node
+            node_to_visit = node_to_visit.link_parent
+            node_to_visit.link_child = None
 
         # If there's no path, the final_node will be null, but nodes_visited could still have content
         return final_node, nodes_visited
