@@ -1,9 +1,6 @@
 # PointRobotDijkstra
 
-Robert Nick Vandemark and Alec Lahr
-ENPM661
-Project 3
-Dijkstra and A* Search
+Robert Nick Vandemark and Alec Lahr  |  ENPM661  |  Project 3  |  Dijkstra and A* Search
 
 ----------
 
