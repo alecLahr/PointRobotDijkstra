@@ -12,6 +12,7 @@ path from start to goal positions, with obstacles avoided using
 half-plane models. Ran with Python3.
 
 Run Vandemark_Lahr_D.py for phase 1 (Dijkstra)
+
 Run Vandemark_Lahr_A.py for phase 2 (A*)
 
 Each program prompts the user for six inputs:
