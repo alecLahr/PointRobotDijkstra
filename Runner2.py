@@ -391,11 +391,11 @@ def main():
                 )
             
             # ramp up video search speed
-            if i<N/100 and i%3==0:
+            if i<900 and i<N/100 and i%10==0:
                 vid_write.write(img)
-            elif i<N/10 and i%10==0:
+            elif i<N/10 and i%300==0:
                 vid_write.write(img)
-            elif i%50 or i==N-1:
+            elif i%1000 or i==N-1:
                 vid_write.write(img)
             
         # Draw the final path
